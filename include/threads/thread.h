@@ -116,7 +116,6 @@ extern bool thread_mlfqs;
 
 void thread_init (void);
 void thread_start (void);
-
 void thread_tick (void);
 void thread_print_stats (void);
 
@@ -132,6 +131,7 @@ const char *thread_name (void);
 
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
+void thread_sleep (int64_t ticks);
 
 int thread_get_priority (void);
 void thread_set_priority (int);

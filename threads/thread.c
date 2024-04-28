@@ -27,6 +27,7 @@
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
+static struct list sleep_list;
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -53,6 +54,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
+int64_t next_tick_to_awake = INT64_MAX;
 
 static void kernel_thread (thread_func *, void *aux);
 
@@ -74,7 +76,7 @@ static tid_t allocate_tid (void);
 #define running_thread() ((struct thread *) (pg_round_down (rrsp ())))
 
 
-// Global descriptor table for the thread_start.
+// Global descriptor table for the thread_fstart.
 // Because the gdt will be setup after the thread_init, we should
 // setup temporal gdt first.
 static uint64_t gdt[3] = { 0, 0x00af9a000000ffff, 0x00cf92000000ffff };
@@ -108,6 +110,7 @@ thread_init (void) {
 	/* Init the globla thread context */
 	lock_init (&tid_lock);
 	list_init (&ready_list);
+	list_init (&sleep_list);
 	list_init (&destruction_req);
 
 	/* Set up a thread structure for the running thread. */
@@ -307,6 +310,25 @@ thread_yield (void) {
 	do_schedule (THREAD_READY);
 	intr_set_level (old_level);
 }
+void
+thread_sleep (int64_t ticks){
+	struct thread *curr = thread_current ();
+	enum intr_level old_level;
+
+	ASSERT (!intr_context ());
+
+	old_level = intr_disable ();
+	if (curr != idle_thread)
+		list_push_back (&sleep_list, &curr->elem);
+	thread_block();
+	update_next_tick_to_awake(ticks);
+	intr_set_level (old_level);
+}
+
+void update_next_tick_to_awake(int64_t ticks){
+	next_tick_to_awake = (ticks < next_tick_to_awake) ? ticks : next_tick_to_awake;
+}
+
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
