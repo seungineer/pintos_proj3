@@ -298,16 +298,12 @@ void thread_yield(void) {
 void thread_sleep(int64_t ticks) {
     struct thread *curr = thread_current();
     enum intr_level old_level;
-	if (intr_context){
-		barrier(); // breaj oiub
-	}
-    ASSERT(!intr_context());
 
      old_level = intr_disable();
     if (curr != idle_thread) {
+		curr->wakeup_tick = ticks;
         list_push_back(&sleep_list, &curr->elem);
         thread_block();
-        curr->wakeup_tick = ticks;
         update_next_tick_to_awake(ticks);
     }
 
@@ -318,7 +314,7 @@ void thread_awake(int64_t ticks) {
     struct list_elem *e = list_begin(&sleep_list);
     while (e != list_end(&sleep_list)) {
         struct thread *t = list_entry(e, struct thread, elem);
-        if (t->wakeup_tick >= ticks) {
+        if (t->wakeup_tick <= ticks) {
             e = list_remove(e);
             thread_unblock(t);
         } else
@@ -395,7 +391,7 @@ static void idle(void *idle_started_ UNUSED) {
 
            See [IA32-v2a] "HLT", [IA32-v2b] "STI", and [IA32-v3a]
            7.11.1 "HLT Instruction". */
-        asm volatile("sti; hlt" : : : "memory");
+         asm volatile("sti; hlt" : : : "memory");
     }
 }
 
