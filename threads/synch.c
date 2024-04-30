@@ -199,11 +199,42 @@ void lock_acquire(struct lock *lock)
 	ASSERT(lock != NULL);
 	ASSERT(!intr_context());
 	ASSERT(!lock_held_by_current_thread(lock));
-
+	if (lock->holder)
+	{
+		thread_current()->wait_on_lock = lock;
+		list_insert_ordered(&lock->holder->donations, &lock->holder->donation_elem, cmp_donation_priority, 0);
+		donate_priority();
+	}
 	sema_down(&lock->semaphore);
 	lock->holder = thread_current();
 }
 
+bool cmp_donation_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
+{
+	struct thread *donation_a = list_entry(a, struct thread, donation_elem);
+	struct thread *donation_b = list_entry(b, struct thread, donation_elem);
+
+	return donation_a->priority > donation_b->priority;
+}
+void donate_priority(void)
+{
+	int depth;
+	int max_depth = 8;
+	struct thread *next_thread;
+	struct thread *cur = thread_current();
+	next_thread = cur;
+	int prio = next_thread->priority;
+	for (depth = 0; depth <= max_depth; depth++)
+	{
+		if (next_thread != NULL)
+		{
+			next_thread = next_thread->wait_on_lock->holder;
+			next_thread->priority = prio;
+		}
+		else
+		break;
+	}
+}
 /* Tries to acquires LOCK and returns true if successful or false
    on failure.  The lock must not already be held by the current
    thread.

@@ -444,6 +444,10 @@ static void init_thread(struct thread *t, const char *name, int priority) {
     t->tf.rsp = (uint64_t)t + PGSIZE - sizeof(void *);
     t->priority = priority;
     t->magic = THREAD_MAGIC;
+    /* for the donation test */
+    t->init_priority = priority; // save orginal priority
+    t->wait_on_lock = NULL;
+    list_init(&t->donations);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should

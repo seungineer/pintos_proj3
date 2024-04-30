@@ -95,6 +95,12 @@ struct thread {
 
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
+	/* fields for the donation priority */
+	int init_priority; 				// Save the original priority
+
+	struct lock *wait_on_lock;  	// 요청한 lock
+	struct list donations;			// 기부 받은 우선순위 리스트
+	struct list_elem donation_elem; // donations 식별자
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
