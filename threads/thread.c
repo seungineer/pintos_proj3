@@ -354,6 +354,7 @@ void update_next_tick_to_awake(int64_t ticks) {
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority(int new_priority) {
     thread_current()->priority = new_priority;
+    refresh_priority();
     thread_test_preemption();
 
 }

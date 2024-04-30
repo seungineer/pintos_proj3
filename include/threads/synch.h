@@ -39,6 +39,8 @@ void cond_signal (struct condition *, struct lock *);
 void cond_broadcast (struct condition *, struct lock *);
 bool cmp_sema_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
 bool cmp_donation_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
+void refresh_priority(void);
+void remove_with_lock (struct lock *lock);
 
 /* Optimization barrier.
  *
