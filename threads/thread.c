@@ -308,7 +308,7 @@ bool cmp_thread_priority(const struct list_elem *a, const struct list_elem *b, v
 {
     return list_entry (a, struct thread, elem)->priority
          > list_entry (b, struct thread, elem)->priority;
-
+}
 
 void thread_sleep(int64_t ticks) {
     struct thread *curr = thread_current();
@@ -343,7 +343,7 @@ void update_next_tick_to_awake(int64_t ticks) {
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority(int new_priority) {
-    thread_current()->priority = new_priority;
+    thread_current()->init_priority = new_priority;
     refresh_priority();
     thread_test_preemption();
 }
