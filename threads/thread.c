@@ -206,13 +206,10 @@ tid_t thread_create(const char *name, int priority, thread_func *function, void 
     return tid;
 }
 void thread_test_preemption(void){
-    if (list_empty(&ready_list)){
-        return;
-    }
-    if (thread_current()->priority < list_entry(list_front(&ready_list), struct thread, elem)->priority){
-        thread_yield();
-    }
-
+    if (!list_empty (&ready_list) && 
+    thread_current ()->priority < 
+    list_entry (list_front (&ready_list), struct thread, elem)->priority)
+        thread_yield ();
 }
 /* Puts the current thread to sleep.  It will not be scheduled
    again until awoken by thread_unblock().
@@ -236,18 +233,16 @@ void thread_block(void) {
    it may expect that it can atomically unblock a thread and
    update other data. */
 void thread_unblock(struct thread *t) {
-    void *aux;
-    list_less_func *less;
-    enum intr_level old_level;
+  enum intr_level old_level;
 
-    ASSERT(is_thread(t));
+  ASSERT (is_thread (t));
 
-    old_level = intr_disable();
-    ASSERT(t->status == THREAD_BLOCKED);
-    //list_push_back(&ready_list, &t->elem);
-    list_insert_ordered (&ready_list, &t->elem, cmp_thread_priority, aux);
-    t->status = THREAD_READY;
-    intr_set_level(old_level);
+  old_level = intr_disable ();
+  ASSERT (t->status == THREAD_BLOCKED);
+  //list_push_back (&ready_list, &t->elem);
+  list_insert_ordered (&ready_list, &t->elem, cmp_thread_priority, 0);
+  t->status = THREAD_READY;
+  intr_set_level (old_level);
 }
 
 /* Returns the name of the running thread. */
@@ -296,35 +291,30 @@ void thread_exit(void) {
 /* Yields the CPU.  The current thread is not put to sleep and
    may be scheduled again immediately at the scheduler's whim. */
 void thread_yield(void) {
-    void *aux;
-    list_less_func *less;
-    struct thread *curr = thread_current();
-    enum intr_level old_level;
+  struct thread *cur = thread_current ();
+  enum intr_level old_level;
+  
+  ASSERT (!intr_context ());
 
-    ASSERT(!intr_context());
-
-    old_level = intr_disable();
-    if (curr != idle_thread)
-        //list_push_back(&ready_list, &curr->elem);
-        list_insert_ordered (&ready_list, &curr->elem, cmp_thread_priority, aux);
-    do_schedule(THREAD_READY);
-    intr_set_level(old_level);
+  old_level = intr_disable ();
+  if (cur != idle_thread) 
+    //list_push_back (&ready_list, &cur->elem);
+    list_insert_ordered (&ready_list, &cur->elem, cmp_thread_priority, 0);
+  cur->status = THREAD_READY;
+  schedule ();
+  intr_set_level (old_level);
 }
 bool cmp_thread_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
 {
-    if ((list_entry(a, struct thread, elem)->priority) > (list_entry(b, struct thread, elem)->priority)) {
-        return 1;
-    }
-    else{
-        return 0;
-    }    
-}
+    return list_entry (a, struct thread, elem)->priority
+         > list_entry (b, struct thread, elem)->priority;
+
 
 void thread_sleep(int64_t ticks) {
     struct thread *curr = thread_current();
     enum intr_level old_level;
 
-     old_level = intr_disable();
+    old_level = intr_disable();
     if (curr != idle_thread) {
 		curr->wakeup_tick = ticks;
         list_push_back(&sleep_list, &curr->elem);
@@ -356,7 +346,6 @@ void thread_set_priority(int new_priority) {
     thread_current()->priority = new_priority;
     refresh_priority();
     thread_test_preemption();
-
 }
 
 /* Returns the current thread's priority. */
