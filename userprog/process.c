@@ -42,18 +42,22 @@ tid_t
 process_create_initd (const char *file_name) {
 	char *fn_copy;
 	tid_t tid;
-
+	
 	/* Make a copy of FILE_NAME.
 	 * Otherwise there's a race between the caller and load(). */
 	fn_copy = palloc_get_page (0);
 	if (fn_copy == NULL)
 		return TID_ERROR;
 	strlcpy (fn_copy, file_name, PGSIZE);
-
 	/* Create a new thread to execute FILE_NAME. */
+	printf("지점1: process.c/process_create_initd1\n");
 	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
-	if (tid == TID_ERROR)
+	printf("지점2: process.c/process_create_initd2\n");
+	if (tid == TID_ERROR){
+		printf("TID ERROR IN\n");
 		palloc_free_page (fn_copy);
+	}
+	printf("process_created_initd 완료\n");
 	return tid;
 }
 
@@ -158,41 +162,80 @@ error:
 	thread_exit ();
 }
 
-/* Switch the current execution context to the f_name.
- * Returns -1 on fail. */
-int
-process_exec (void *f_name) {
-	char *file_name = f_name;
-	bool success;
+int process_exec(void *f_name)
+{
+    char *file_name = f_name;
+    bool success;
 
-	/* We cannot use the intr_frame in the thread structure.
-	 * This is because when current thread rescheduled,
-	 * it stores the execution information to the member. */
-	struct intr_frame _if;
-	_if.ds = _if.es = _if.ss = SEL_UDSEG;
-	_if.cs = SEL_UCSEG;
-	_if.eflags = FLAG_IF | FLAG_MBS;
+    struct intr_frame _if;
+    _if.ds = _if.es = _if.ss = SEL_UDSEG; // Set Data segment register
+    _if.cs = SEL_UCSEG;                   // Set Code segment register
+    _if.eflags = FLAG_IF | FLAG_MBS;      // Set Interrupt Flag and State of Machine
 
-	/* We first kill the current context */
-	process_cleanup ();
+    process_cleanup();
 
-	/* And then load the binary */
-	success = load (file_name, &_if);
-
-	/* If load failed, quit. */
-	palloc_free_page (file_name);
+    // 파일 이름과 인자들을 파싱하여 저장합니다.
+	char *token;
+	char *next_ptr;
+	char *argv[64];
+	char *argv_ptr[128];
+	int argc = 0;
+	int temp_cnt = 0;
+	int mod;
+    
+	/* arguments parsing */
+	token = strtok_r(file_name, " ", &next_ptr);
+	while (token!= NULL){
+		argv[temp_cnt] = token;
+		token = strtok_r(NULL, " ", &next_ptr);  // NULL을 공백을 기준으로 분할하고자 할 때 -> next_ptr에서 시작하여 공백을 기준으로 분할
+		temp_cnt ++;
+	}
+    
+    success = load(file_name, &_if);
 	if (!success)
-		return -1;
+        return -1;
+	
+	for (int i = temp_cnt-1; i >= 0;i-- ){
+		_if.rsp = _if.rsp - strlen(argv[i])-1;       // 스택 확장
+		memcpy(_if.rsp, argv[i], strlen(argv[i])+1); // 확장한 공간에 argv 복사
+		argv_ptr[i] = _if.rsp;                       // rsp 가 가리킨 argv pointer 저장
+	}
 
-	/* Start switched process. */
-	do_iret (&_if);
-	NOT_REACHED ();
+    mod = (USER_STACK - _if.rsp) % 8;
+    while(mod != 0){
+        _if.rsp --;
+        *(uint8_t *) _if.rsp = 0;
+        mod --;
+        _if.rsp --;
+    }
+
+    _if.rsp -= 8;                     // 형식 맞추기 위한 의도적 패딩(8 byte)
+    memset(_if.rsp, 0, 8);
+
+    for (int i = temp_cnt - 1; i >= 0; i--)
+    {
+        _if.rsp -= 8;                 // 8 byte 만큼 stack 확장
+        memcpy(_if.rsp, &argv[i], 8); // argument vector의 주소 복사
+    }
+
+    _if.rsp -= 8;                     // 형식 맞추기 위한 Fake Address(8 byte)
+    memset(_if.rsp, 0, 8);
+
+    _if.R.rdi = temp_cnt;            // rdi 레지스터에 arguments count 할당
+    _if.R.rsi = (char *)_if.rsp + 8; // rsi 레지스터에 fake address를 제외한 user stack의 주소 할당
+
+	hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
+    palloc_free_page(file_name);
+
+    do_iret(&_if);
+	
+    NOT_REACHED();
+
 }
-
 
 /* Waits for thread TID to die and returns its exit status.  If
  * it was terminated by the kernel (i.e. killed due to an
- * exception), returns -1.  If TID is invalid or if it was not a
+ * exception), returns -1.  I f TID is invalid or if it was not a
  * child of the calling process, or if process_wait() has already
  * been successfully called for the given TID, returns -1
  * immediately, without waiting.
@@ -201,9 +244,10 @@ process_exec (void *f_name) {
  * does nothing. */
 int
 process_wait (tid_t child_tid UNUSED) {
-	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
-	 * XXX:       to add infinite loop here before
-	 * XXX:       implementing the process_wait. */
+	while(1)
+	{ 
+		
+	}
 	return -1;
 }
 
