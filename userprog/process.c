@@ -209,20 +209,20 @@ int process_exec(void *f_name)
         _if.rsp --;
     }
 
-    _if.rsp -= 8;                     // 형식 맞추기 위한 의도적 패딩(8 byte)
+    _if.rsp -= 8;                      // 형식 맞추기 위한 의도적 패딩(8 byte)
     memset(_if.rsp, 0, 8);
 
     for (int i = temp_cnt - 1; i >= 0; i--)
     {
-        _if.rsp -= 8;                 // 8 byte 만큼 stack 확장
-        memcpy(_if.rsp, &argv[i], 8); // argument vector의 주소 복사
+        _if.rsp -= 8;                // 8 byte 만큼 stack 확장
+        memcpy(_if.rsp, &argv[i], 8);// argument vector의 주소 복사
     }
 
-    _if.rsp -= 8;                     // 형식 맞추기 위한 Fake Address(8 byte)
+    _if.rsp -= 8;                      // 형식 맞추기 위한 Fake Address(8 byte)
     memset(_if.rsp, 0, 8);
 
-    _if.R.rdi = temp_cnt;            // rdi 레지스터에 arguments count 할당
-    _if.R.rsi = (char *)_if.rsp + 8; // rsi 레지스터에 fake address를 제외한 user stack의 주소 할당
+    _if.R.rdi = temp_cnt;              // rdi 레지스터에 arguments count 할당
+    _if.R.rsi = (char *)_if.rsp + 8;   // rsi 레지스터에 fake address를 제외한 user stack의 주소 할당
 
 	hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
     palloc_free_page(file_name);

@@ -41,6 +41,37 @@ syscall_init (void) {
 void
 syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
-	printf ("system call!\n");
-	thread_exit ();
+	int syscall_number = f->R.rax; // system call number 가져오기
+	switch (syscall_number){
+		case SYS_HALT:
+			halt();
+			break;
+		case SYS_EXIT:
+			exit(f->R.rsi);
+		case SYS_WAIT:
+			f->R.rax = wait(f->R.rdi);
+			break;
+	}
+	// printf ("system call!\n");
+	// thread_exit ();
+}
+
+void
+check_address (void *addr){
+	if (addr != NULL && is_user_vaddr(addr)){
+		return; 	// 유효한 주소
+	}
+	exit(-1);		// 유효하지 않은 주소 처리(state = -1)
+}
+void
+halt (void){
+	power_off (); // pintos 완전히 종료
+}
+void
+exit (int status){
+	struct thread *curr = thread_current();
+	curr->status = status;
+	printf("%s(프로세스 이름): exit(%d)\n",curr->name, status); // process termination message
+	ASSERT(curr->status == 0);
+	thread_exit();
 }
