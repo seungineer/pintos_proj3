@@ -265,7 +265,7 @@ const char *thread_name(void)
 struct thread *thread_current(void)
 {
     struct thread *t = running_thread();
-
+    // printf("%s\n", t->status);
     /* Make sure T is really a thread.
        If either of these assertions fire, then your thread may
        have overflowed its stack.  Each thread has less than 4 kB
@@ -467,6 +467,11 @@ static void init_thread(struct thread *t, const char *name, int priority)
     t->init_priority = priority; // save orginal priority
     t->wait_on_lock = NULL;
     list_init(&t->donations);
+
+    sema_init(&t->wait_sema,0);
+	sema_init(&t->fork_sema,0);
+	sema_init(&t->free_sema,0);
+    list_init(&t->child_list);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
