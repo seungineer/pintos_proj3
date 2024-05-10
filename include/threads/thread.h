@@ -92,7 +92,7 @@ struct thread {
 	char name[16];                      /* Name (for debugging purposes). */
 	int priority;                       /* Priority. */
 	int64_t wakeup_tick;
-
+	uint8_t *stack; 				// Stack Pointer 저장
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
 	/* fields for the donation priority */

@@ -72,7 +72,6 @@ main (void) {
 
 	/* Clear BSS and get machine's RAM size. */
 	bss_init ();
-
 	/* Break command line into arguments and parse options. */
 	argv = read_command_line ();
 	argv = parse_options (argv);
@@ -244,9 +243,12 @@ run_task (char **argv) {
 	if (thread_tests){
 		run_test (task);
 	} else {
+		
 		process_wait (process_create_initd (task));
+		
 	}
 #else
+	// printf("after userprog, process_created\n");
 	run_test (task);
 #endif
 	printf ("Execution of '%s' complete.\n", task);
@@ -320,6 +322,7 @@ usage (void) {
 			"  put FILE           Put FILE into file system from scratch disk.\n"
 			"  get FILE           Get FILE from file system into scratch disk.\n"
 #endif
+
 			"\nOptions:\n"
 			"  -h                 Print this help message and power off.\n"
 			"  -q                 Power off VM after actions or on panic.\n"

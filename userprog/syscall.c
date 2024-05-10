@@ -8,6 +8,14 @@
 #include "threads/flags.h"
 #include "intrinsic.h"
 
+#include "filesys/filesys.h"
+#include "filesys/file.h"
+#include <list.h>
+#include "threads/palloc.h"
+#include "threads/vaddr.h"
+#include "userprog/process.h"
+#include "threads/synch.h"
+
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 
@@ -24,6 +32,9 @@ void syscall_handler (struct intr_frame *);
 #define MSR_LSTAR 0xc0000082        /* Long mode SYSCALL target */
 #define MSR_SYSCALL_MASK 0xc0000084 /* Mask for the eflags */
 
+bool create (const char *file, unsigned initial_size);
+void exit (int status);
+
 void
 syscall_init (void) {
 	write_msr(MSR_STAR, ((uint64_t)SEL_UCSEG - 0x10) << 48  |
@@ -37,10 +48,58 @@ syscall_init (void) {
 			FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
 }
 
+void
+check_address (void *addr){
+	if (addr != NULL && is_user_vaddr(addr)){
+		return; 	// 유효한 주소
+	}
+	exit(-1);		// 유효하지 않은 주소 처리(state = -1)
+}
+void
+halt (void){
+	power_off (); // pintos 완전히 종료
+}
+void
+exit (int status){
+	struct thread *curr = thread_current();
+	curr->status = status;
+	printf("%s(프로세스 이름): exit(%d)\n",curr->name, status); // process termination message
+	ASSERT(curr->status == 0);
+	thread_exit();
+}
+bool
+create (const char *file, unsigned initial_size){ // 파일 시스템 생성 시스템 콜
+	check_address(file);						  // 유효한 주소인 경우
+	return filesys_create(file, initial_size);
+}
+
+bool
+remove (const char *file){
+	check_address(file);
+	return filesys_remove(file);
+}
+
 /* The main system call interface */
 void
 syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
-	printf ("system call!\n");
-	thread_exit ();
+	int syscall_number = f->R.rax; // system call number 가져오기
+	switch (syscall_number){
+		case SYS_HALT:
+			halt();
+			break;
+		case SYS_EXIT:
+			exit(f->R.rsi);
+		// case SYS_WAIT:
+		// 	f->R.rax = wait(f->R.rdi);
+		// 	break;
+		case SYS_CREATE:
+			f->R.rax = create(f->R.rdi,f->R.rdx);
+			break;
+		case SYS_REMOVE:
+			f->R.rax = remove(f->R.rdi);
+			break;
+	}
+	// printf ("system call!\n");
+	// thread_exit ();
 }
