@@ -2,7 +2,7 @@
 #include <debug.h>
 #include <inttypes.h>
 #include <round.h>
-#include <stdio.h>
+// #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "userprog/gdt.h"
@@ -26,6 +26,7 @@ static void process_cleanup (void);
 static bool load (const char *file_name, struct intr_frame *if_);
 static void initd (void *f_name);
 static void __do_fork (void *);
+void argument_stack(char **parse, int count, void **rsp);
 
 /* General process initializer for initd and other process. */
 static void
@@ -50,14 +51,14 @@ process_create_initd (const char *file_name) {
 		return TID_ERROR;
 	strlcpy (fn_copy, file_name, PGSIZE);
 	/* Create a new thread to execute FILE_NAME. */
-	printf("지점1: process.c/process_create_initd1\n");
+	// printf("지점1: process.c/process_create_initd1\n");
 	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
-	printf("지점2: process.c/process_create_initd2\n");
+	// printf("지점2: process.c/process_create_initd2\n");
 	if (tid == TID_ERROR){
 		printf("TID ERROR IN\n");
 		palloc_free_page (fn_copy);
 	}
-	printf("process_created_initd 완료\n");
+	// printf("process_created_initd 완료\n");
 	return tid;
 }
 
@@ -164,75 +165,160 @@ error:
 
 int process_exec(void *f_name)
 {
-    char *file_name = f_name;
-    bool success;
+	//============= gdb 수정 위해 임시로 ==========//
+    // char *file_name = f_name;
+    // bool success;
 
-    struct intr_frame _if;
-    _if.ds = _if.es = _if.ss = SEL_UDSEG; // Set Data segment register
-    _if.cs = SEL_UCSEG;                   // Set Code segment register
-    _if.eflags = FLAG_IF | FLAG_MBS;      // Set Interrupt Flag and State of Machine
+    // struct intr_frame _if;
+    // _if.ds = _if.es = _if.ss = SEL_UDSEG; // Set Data segment register
+    // _if.cs = SEL_UCSEG;                   // Set Code segment register
+    // _if.eflags = FLAG_IF | FLAG_MBS;      // Set Interrupt Flag and State of Machine
 
-    process_cleanup();
+    // process_cleanup();
 
-    // 파일 이름과 인자들을 파싱하여 저장합니다.
-	char *token;
-	char *next_ptr;
-	char *argv[64];
-	char *argv_ptr[128];
-	int argc = 0;
-	int temp_cnt = 0;
-	int mod;
+    // // 파일 이름과 인자들을 파싱하여 저장합니다.
+	// char *token;
+	// char *next_ptr;
+	// char *argv[64];
+	// char *argv_ptr[128];
+	// int argc = 0;
+	// int temp_cnt = 0;
+	// int mod;
     
+	
 	/* arguments parsing */
-	token = strtok_r(file_name, " ", &next_ptr);
-	while (token!= NULL){
-		argv[temp_cnt] = token;
-		token = strtok_r(NULL, " ", &next_ptr);  // NULL을 공백을 기준으로 분할하고자 할 때 -> next_ptr에서 시작하여 공백을 기준으로 분할
-		temp_cnt ++;
-	}
+	// token = strtok_r(file_name, " ", &next_ptr);
+	// while (token!= NULL){
+	// 	argv[temp_cnt] = token;
+	// 	token = strtok_r(NULL, " ", &next_ptr);  // NULL을 공백을 기준으로 분할하고자 할 때 -> next_ptr에서 시작하여 공백을 기준으로 분할
+	// 	temp_cnt ++;
+	// }
     
-    success = load(file_name, &_if);
-	if (!success)
-        return -1;
+    // success = load(file_name, &_if);
+	// if (!success)
+    //     return -1;
 	
-	for (int i = temp_cnt-1; i >= 0;i-- ){
-		_if.rsp = _if.rsp - strlen(argv[i])-1;       // 스택 확장
-		memcpy(_if.rsp, argv[i], strlen(argv[i])+1); // 확장한 공간에 argv 복사
-		argv_ptr[i] = _if.rsp;                       // rsp 가 가리킨 argv pointer 저장
+	// for (int i = temp_cnt-1; i >= 0;i-- ){
+	// 	_if.rsp = _if.rsp - strlen(argv[i])-1;       // 스택 확장
+	// 	memcpy(_if.rsp, argv[i], strlen(argv[i])+1); // 확장한 공간에 argv 복사
+	// 	argv_ptr[i] = _if.rsp;                       // rsp 가 가리킨 argv pointer 저장
+	// }
+
+    // mod = (USER_STACK - _if.rsp) % 8;
+    // while(mod != 0){
+    //     _if.rsp --;
+    //     *(uint8_t *) _if.rsp = 0;
+    //     mod --;
+    //     _if.rsp --;
+    // }
+
+    // _if.rsp -= 8;                      // 형식 맞추기 위한 의도적 패딩(8 byte)
+    // memset(_if.rsp, 0, 8);
+
+    // for (int i = temp_cnt - 1; i >= 0; i--)
+    // {
+    //     _if.rsp -= 8;                // 8 byte 만큼 stack 확장
+    //     memcpy(_if.rsp, &argv[i], 8);// argument vector의 주소 복사
+    // }
+
+    // _if.rsp -= 8;                      // 형식 맞추기 위한 Fake Address(8 byte)
+    // memset(_if.rsp, 0, 8);
+
+    // _if.R.rdi = temp_cnt;              // rdi 레지스터에 arguments count 할당
+    // _if.R.rsi = (char *)_if.rsp + 8;   // rsi 레지스터에 fake address를 제외한 user stack의 주소 할당
+
+	// // hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
+    // palloc_free_page(file_name);
+
+    // do_iret(&_if);
+	
+    // NOT_REACHED();
+	//============= gdb 수정 위해 임시로 ==========///
+	char *file_name = f_name;
+	bool success;
+
+	/* We cannot use the intr_frame in the thread structure.
+	 * This is because when current thread rescheduled,
+	 * it stores the execution information to the member. */
+	struct intr_frame _if;
+	_if.ds = _if.es = _if.ss = SEL_UDSEG;
+	_if.cs = SEL_UCSEG;
+	_if.eflags = FLAG_IF | FLAG_MBS;
+
+	/* We first kill the current context */
+	process_cleanup();
+
+	char *parse[64];
+	char *token, *save_ptr;
+	int count = 0;
+	for (token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr))
+		parse[count++] = token;
+
+	/* And then load the binary */
+	// lock_acquire(&filesys_lock);
+	success = load(file_name, &_if);
+	// lock_release(&filesys_lock);
+	// 이진 파일을 디스크에서 메모리로 로드한다.
+	// 이진 파일에서 실행하려는 명령의 위치를 얻고 (if_.rip)
+	// user stack의 top 포인터를 얻는다. (if_.rsp)
+	// 위 과정을 성공하면 실행을 계속하고, 실패하면 스레드가 종료된다.
+
+	/* If load failed, quit. */
+	if (!success)
+	{
+		palloc_free_page(file_name);
+		return -1;
 	}
 
-    mod = (USER_STACK - _if.rsp) % 8;
-    while(mod != 0){
-        _if.rsp --;
-        *(uint8_t *) _if.rsp = 0;
-        mod --;
-        _if.rsp --;
-    }
+	argument_stack(parse, count, &_if.rsp); // 함수 내부에서 parse와 rsp의 값을 직접 변경하기 위해 주소 전달
+	_if.R.rdi = count;
+	_if.R.rsi = (char *)_if.rsp + 8;
 
-    _if.rsp -= 8;                      // 형식 맞추기 위한 의도적 패딩(8 byte)
-    memset(_if.rsp, 0, 8);
+	hex_dump(_if.rsp, _if.rsp, KERN_BASE - (uint64_t)_if.rsp, true); // user stack을 16진수로 프린트
 
-    for (int i = temp_cnt - 1; i >= 0; i--)
-    {
-        _if.rsp -= 8;                // 8 byte 만큼 stack 확장
-        memcpy(_if.rsp, &argv[i], 8);// argument vector의 주소 복사
-    }
+	palloc_free_page(file_name);
 
-    _if.rsp -= 8;                      // 형식 맞추기 위한 Fake Address(8 byte)
-    memset(_if.rsp, 0, 8);
-
-    _if.R.rdi = temp_cnt;              // rdi 레지스터에 arguments count 할당
-    _if.R.rsi = (char *)_if.rsp + 8;   // rsi 레지스터에 fake address를 제외한 user stack의 주소 할당
-
-	hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
-    palloc_free_page(file_name);
-
-    do_iret(&_if);
-	
-    NOT_REACHED();
+	/* Start switched process. */
+	do_iret(&_if);
+	NOT_REACHED();
 
 }
+void argument_stack(char **parse, int count, void **rsp) // 주소를 전달받았으므로 이중 포인터 사용
+{
+	// 프로그램 이름, 인자 문자열 push
+	for (int i = count - 1; i > -1; i--)
+	{
+		for (int j = strlen(parse[i]); j > -1; j--)
+		{
+			(*rsp)--;					  // 스택 주소 감소
+			**(char **)rsp = parse[i][j]; // 주소에 문자 저장
+		}
+		parse[i] = *(char **)rsp; // parse[i]에 현재 rsp의 값 저장해둠(지금 저장한 인자가 시작하는 주소값)
+	}
 
+	// 정렬 패딩 push
+	int padding = (int)*rsp % 8;
+	for (int i = 0; i < padding; i++)
+	{
+		(*rsp)--;
+		**(uint8_t **)rsp = 0; // rsp 직전까지 값 채움
+	}
+
+	// 인자 문자열 종료를 나타내는 0 push
+	(*rsp) -= 8;
+	**(char ***)rsp = 0;
+
+	// 각 인자 문자열의 주소 push
+	for (int i = count - 1; i > -1; i--)
+	{
+		(*rsp) -= 8; // 다음 주소로 이동
+		**(char ***)rsp = parse[i];
+	}
+
+	// return address push
+	(*rsp) -= 8;
+	**(void ***)rsp = 0;
+}
 /* Waits for thread TID to die and returns its exit status.  If
  * it was terminated by the kernel (i.e. killed due to an
  * exception), returns -1.  I f TID is invalid or if it was not a
@@ -244,11 +330,22 @@ int process_exec(void *f_name)
  * does nothing. */
 int
 process_wait (tid_t child_tid UNUSED) {
-	while(1)
-	{ 
-		
+	while(1) {
+
 	}
-	return -1;
+	// struct thread *child = get_child_process(child_tid);
+	// if (child == NULL) // 자식이 아니면 -1을 반환한다.
+	// 	return -1;
+
+	// // 자식이 종료될 때까지 대기한다. (process_exit에서 자식이 종료될 때 sema_up 해줄 것이다.)
+	// sema_down(&child->wait_sema);
+	// // 자식이 종료됨을 알리는 `wait_sema` signal을 받으면 현재 스레드(부모)의 자식 리스트에서 제거한다.
+	// list_remove(&child->child_elem);
+	// // 자식이 완전히 종료되고 스케줄링이 이어질 수 있도록 자식에게 signal을 보낸다.
+	// sema_up(&child->exit_sema);
+
+	// return child->exit_status; // 자식의 exit_status를 반환한다.
+	return 1;
 }
 
 /* Exit the process. This function is called by thread_exit (). */

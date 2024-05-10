@@ -243,12 +243,12 @@ run_task (char **argv) {
 	if (thread_tests){
 		run_test (task);
 	} else {
-		printf("before : userprog, process_created_intd\n");
+		
 		process_wait (process_create_initd (task));
-		printf("after : userprog, process_created\n");
+		
 	}
 #else
-	printf("after userprog, process_created\n");
+	// printf("after userprog, process_created\n");
 	run_test (task);
 #endif
 	printf ("Execution of '%s' complete.\n", task);

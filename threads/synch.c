@@ -192,7 +192,7 @@ void lock_acquire(struct lock *lock) {
     donate_priority ();
   }
 
-  sema_down (&lock->semaphore);
+  sema_down (&lock->semaphore); 
   
   cur->wait_on_lock = NULL;
   lock->holder = cur;
