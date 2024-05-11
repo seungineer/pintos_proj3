@@ -58,7 +58,6 @@ void close(int fd);
 tid_t fork(const char *thread_name);
 int exec(const char *cmd_line);
 int wait(int pid);
-struct lock filesys_lock;
 
 void syscall_init(void) {
     write_msr(MSR_STAR, ((uint64_t)SEL_UCSEG - 0x10) << 48 | ((uint64_t)SEL_KCSEG) << 32);
@@ -163,12 +162,14 @@ int exec(const char *cmd_line)
 
 int read(int fd, void *buffer, unsigned size) // read 함수는 fd, size로 얼만큼 읽었는지 뱉어내는 함수
 {
+	// printf("fd 값 체크 : %d\n", fd);
+	// printf("size 값 체크 : %d\n", size);
 	check_address(buffer);
 	// printf("=========read 시작=============\n");
 	char *ptr = (char *)buffer;
 	int bytes_read = 0;
-
-	// lock_acquire(&filesys_lock);
+	// printf("filesys_lock의 semaphoere : %d\n", *(&filesys_lock.semaphore.value));
+	lock_acquire(&filesys_lock); // 여기서 lock_aquire 함수 안을 갔다가 모두 실행되고, 페이지 폴트 발생함(0xfffffe8)
 	// printf("=========read lock 요청=============\n");
 	if (fd == STDIN_FILENO)
 	{
@@ -185,9 +186,12 @@ int read(int fd, void *buffer, unsigned size) // read 함수는 fd, size로 얼�
 	else
 	{
 		// printf("=========else문=============\n");
+		// printf("fd : %d\n", fd);
 		if (fd < 2)
 		{
+			// printf("=========else문 > lock_release=============\n");
 			lock_release(&filesys_lock);
+			// printf("=========else문 > lock_release 탈출 =============\n");
 			return -1;
 		}
 		struct thread *curr = thread_current();
@@ -203,7 +207,9 @@ int read(int fd, void *buffer, unsigned size) // read 함수는 fd, size로 얼�
 		if (file == NULL)
 		{
 			// printf("리드1\n");
+			// printf("=========file이 null일 때 > lock_release=============\n");
 			lock_release(&filesys_lock);
+			// printf("=========file이 null일 때 > lock_release 탈출 =============\n");
 			return -1;
 		}
 		// printf("리드2\n");

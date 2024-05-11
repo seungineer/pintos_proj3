@@ -17,6 +17,8 @@
 #include "userprog/process.h"
 #endif
 
+struct lock filesys_lock;
+
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
@@ -108,6 +110,7 @@ void thread_init(void)
 
     /* Init the globla thread context */
     lock_init(&tid_lock);
+    lock_init(&filesys_lock);
     list_init(&ready_list);
     list_init(&sleep_list);
     list_init(&destruction_req);

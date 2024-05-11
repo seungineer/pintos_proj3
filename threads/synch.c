@@ -63,7 +63,6 @@ void sema_down(struct semaphore *sema) {
 
   ASSERT (sema != NULL);
   ASSERT (!intr_context ());
-
   old_level = intr_disable ();
   while (sema->value == 0) 
     {
@@ -183,7 +182,6 @@ void lock_acquire(struct lock *lock) {
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
-
   struct thread *cur = thread_current ();
   if (lock->holder) {
     cur->wait_on_lock = lock;
@@ -191,9 +189,7 @@ void lock_acquire(struct lock *lock) {
     			cmp_donation_priority, 0);
     donate_priority ();
   }
-
   sema_down (&lock->semaphore); 
-  
   cur->wait_on_lock = NULL;
   lock->holder = cur;
 }
@@ -279,7 +275,6 @@ void refresh_priority(void) {
    a lock would be racy.) */
 bool lock_held_by_current_thread(const struct lock *lock) {
     ASSERT(lock != NULL);
-
     return lock->holder == thread_current();
 }
 
