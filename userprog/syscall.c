@@ -116,12 +116,20 @@ int open(const char *file) {
     return fd;
 }
 struct file *process_get_file (int fd){
-	if (fd < 0 || fd >= FDT_COUNT_LIMIT)
+	// if (fd < 0 || fd >= FDT_COUNT_LIMIT)
+	// 	return NULL;
+	// struct file *f = thread_current()->fd_table[fd];
+	// return f;
+	// // 쓰레드 -> (이중 포인터) FD TABLE -> [X, X, PTR1, PTR2, PTR3, PTR4 ,....,][fd] => FD에 해당하는 포인터만 뽑아낸다.
+	// // 뽑아낸 포인터가 가리키는 곳에 있는 FILE은 *f에 할당!
+	struct thread *curr = thread_current();
+	struct file **fdt = curr->fdt;
+	/* 파일 디스크립터에 해당하는 파일 객체를 리턴 */
+	/* 없을 시 NULL 리턴 */
+	if (fd < 2 || fd >= FDT_COUNT_LIMIT)
 		return NULL;
-	struct file *f = thread_current()->fd_table[fd];
-	return f;
-	// 쓰레드 -> (이중 포인터) FD TABLE -> [X, X, PTR1, PTR2, PTR3, PTR4 ,....,][fd] => FD에 해당하는 포인터만 뽑아낸다.
-	// 뽑아낸 포인터가 가리키는 곳에 있는 FILE은 *f에 할당!
+	
+	return fdt[fd];
 }
 
 int filesize(int fd) {
@@ -156,13 +164,16 @@ int exec(const char *cmd_line)
 int read(int fd, void *buffer, unsigned size) // read 함수는 fd, size로 얼만큼 읽었는지 뱉어내는 함수
 {
 	check_address(buffer);
-
+	// printf("=========read 시작=============\n");
 	char *ptr = (char *)buffer;
 	int bytes_read = 0;
 
-	lock_acquire(&filesys_lock);
+	// lock_acquire(&filesys_lock);
+	// printf("=========read lock 요청=============\n");
 	if (fd == STDIN_FILENO)
 	{
+		// printf("=========if문=============\n");
+
 		for (int i = 0; i < size; i++)
 		{
 			/* 표준 입력(FD = 0)일 때 사용자가 입력한 데이터를 사용할 수 있도록 SIZE 만큼 처리 */
@@ -173,26 +184,34 @@ int read(int fd, void *buffer, unsigned size) // read 함수는 fd, size로 얼�
 	}
 	else
 	{
+		// printf("=========else문=============\n");
 		if (fd < 2)
 		{
 			lock_release(&filesys_lock);
 			return -1;
 		}
+		struct thread *curr = thread_current();
+		struct file **fdt = curr->fdt;
+	/* 파일 디스크립터에 해당하는 파일 객체를 리턴 */
+	/* 없을 시 NULL 리턴 */
+		// if (fd < 2 || fd >= FDT_COUNT_LIMIT)
+		// 	struct file *file = NULL;
+		// struct file *file = fdt[fd];
+	
 		struct file *file = process_get_file(fd);
+		// printf("process_get_file 리턴 받음! %p\n", file);
 		if (file == NULL)
 		{
+			// printf("리드1\n");
 			lock_release(&filesys_lock);
 			return -1;
 		}
-		// struct page *page = spt_find_page(&thread_current()->spt, buffer);
-		// if (page && !page->writable)
-		// {
-		// 	lock_release(&filesys_lock);
-		// 	exit(-1);
-		// }
+		// printf("리드2\n");
 		bytes_read = file_read(file, buffer, size);
-		lock_release(&filesys_lock);
+		// printf("바이또 %d\n", bytes_read);
+		// lock_release(&filesys_lock);
 	}
+	// printf("=========안들어갔음=============\n");
 	return bytes_read;
 }
 
@@ -241,11 +260,17 @@ int wait(int pid)
 
 void close(int fd)
 {
-	struct file *file = process_get_file(fd);
-	if (file == NULL)
+	// struct file *file = process_get_file(fd);
+	// if (file == NULL)
+	// 	return;
+	// file_close(file); 		// 물리적으로 file이 사용한 리소스를 반환(해제)하는 함수
+	// process_close_file(fd); // 프로세스에서 파일 디스크립터에 등록된 fd를 삭제해주는 함수
+
+	struct thread *current = thread_current();
+	if((fd <= 1) || (current->fd_idx <= fd))
 		return;
-	file_close(file); 		// 물리적으로 file이 사용한 리소스를 반환(해제)하는 함수
-	process_close_file(fd); // 프로세스에서 파일 디스크립터에 등록된 fd를 삭제해주는 함수
+	file_close(process_get_file(fd));
+	current->fd_table[fd] = NULL;
 }
 
 tid_t fork (const char *thread_name){
