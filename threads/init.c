@@ -241,10 +241,11 @@ run_task (char **argv) {
 	printf ("Executing '%s':\n", task);
 #ifdef USERPROG
 	if (thread_tests){
-		printf("==========thread tests 아래 =====\n");
 		run_test (task);
 	} else {
-		printf("==========인정되는 부분 시작 =====\n");
+		printf("argv: %s\n", *(argv));
+		printf("argv1: %s\n", *(argv+1));
+		printf("argv2: %s\n", *(argv+2));
 		process_wait (process_create_initd (task));
 	}
 #else

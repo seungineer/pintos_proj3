@@ -29,8 +29,8 @@ static void process_cleanup(void);
 static bool load(const char *file_name, struct intr_frame *if_);
 static void initd(void *f_name);
 static void __do_fork(void *);
-void argument_stack(char **parse, int count, void **rsp);
-
+// void argument_stack(char **parse, int count, void **rsp);
+void argument_stack(char **argv, int argc, struct intr_frame *if_);
 /* General process initializer for initd and other process. */
 static void process_init(void) {
     struct thread *current = thread_current();
@@ -46,6 +46,7 @@ void process_close_file(int fd);
  * thread id, or TID_ERROR if the thread cannot be created.
  * Notice that THIS SHOULD BE CALLED ONCE. */
 tid_t process_create_initd(const char *file_name) {
+    // printf("파일네임임: %s\n", file_name);
     char *fn_copy;
     tid_t tid;
     /* Make a copy of FILE_NAME.
@@ -55,9 +56,8 @@ tid_t process_create_initd(const char *file_name) {
         return TID_ERROR;
 	strlcpy(fn_copy, file_name, PGSIZE);
     /* Create a new thread to execute FILE_NAME. */
-    // printf("지점1: process.c/process_create_initd1\n");
 	tid = thread_create(file_name, PRI_DEFAULT, initd, fn_copy);
-    // printf("지점2: process.c/process_create_initd2\n");
+    
     if (tid == TID_ERROR) {
         printf("TID ERROR IN\n");
         palloc_free_page(fn_copy);
@@ -201,13 +201,13 @@ int process_exec(void *f_name) {
 
     /* We first kill the current context */
     process_cleanup();
-	printf("여기야 여기\n");
+	// printf("여기야 여기\n");
     char *parse[64];
     char *token, *save_ptr;
     int count = 0;
-    for (token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr))
+    for (token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)){
         parse[count++] = token;
-
+	}
     /* And then load the binary */
     // lock_acquire(&filesys_lock);
     success = load(file_name, &_if);
@@ -223,11 +223,12 @@ int process_exec(void *f_name) {
         return -1;
     }
 
-    argument_stack(parse, count, &_if.rsp);  // 함수 내부에서 parse와 rsp의 값을 직접 변경하기 위해 주소 전달
-    _if.R.rdi = count;
-    _if.R.rsi = (char *)_if.rsp + 8;
 
-    hex_dump(_if.rsp, _if.rsp, KERN_BASE - (uint64_t)_if.rsp, true);  // user stack을 16진수로 프린트
+    // argument_stack(parse, count, &_if.rsp);  // 함수 내부에서 parse와 rsp의 값을 직접 변경하기 위해 주소 전달
+    argument_stack(parse, count, &_if);
+	_if.R.rdi = count;
+    _if.R.rsi = (char *)_if.rsp + 8;
+    // hex_dump(_if.rsp, _if.rsp, KERN_BASE - (uint64_t)_if.rsp, true);  // user stack을 16진수로 프린트
 
     palloc_free_page(file_name);
 
@@ -235,37 +236,40 @@ int process_exec(void *f_name) {
     do_iret(&_if);
     NOT_REACHED();
 }
-void argument_stack(char **parse, int count, void **rsp)  // 주소를 전달받았으므로 이중 포인터 사용
-{
-    // 프로그램 이름, 인자 문자열 push
-    for (int i = count - 1; i > -1; i--) {
-        for (int j = strlen(parse[i]); j > -1; j--) {
-            (*rsp)--;                      // 스택 주소 감소
-            **(char **)rsp = parse[i][j];  // 주소에 문자 저장
-        }
-        parse[i] = *(char **)rsp;  // parse[i]에 현재 rsp의 값 저장해둠(지금 저장한 인자가 시작하는 주소값)
-    }
+void argument_stack(char **argv, int argc, struct intr_frame *if_){
+	char *arg_address[128];
 
-    // 정렬 패딩 push
-    int padding = (int)*rsp % 8;
-    for (int i = 0; i < padding; i++) {
-        (*rsp)--;
-        **(uint8_t **)rsp = 0;  // rsp 직전까지 값 채움
-    }
+	// part A: word-align 전까지
+	for(int i = argc - 1 ; i >= 0; i--){
+		int arg_i_len = strlen(argv[i]) + 1; // include sentinel(\0)
+		if_->rsp = if_->rsp - (arg_i_len); // 인자 크기만큼 스택을 늘려줌
+		memcpy(if_->rsp, argv[i], arg_i_len); // 늘려준 공간에 해당 인자를 복사
+		arg_address[i] = if_->rsp; // arg_address 에 위 인자를 복사해준 주소값을 저장
+	}
 
-    // 인자 문자열 종료를 나타내는 0 push
-    (*rsp) -= 8;
-    **(char ***)rsp = 0;
+	// part B : word-align (8의 배수)
+	while(if_ -> rsp % 8 != 0){
+		if_->rsp--;
+		*(uint8_t *) if_->rsp = 0;
+	}
 
-    // 각 인자 문자열의 주소 push
-    for (int i = count - 1; i > -1; i--) {
-        (*rsp) -= 8;  // 다음 주소로 이동
-        **(char ***)rsp = parse[i];
-    }
+	// part C: word-align 이후 (깃북 argv[4]~argv[0]의 주소를 data로 넣기)
+	for(int i = argc; i>=0; i--){
+		if_->rsp = if_->rsp - 8;
+		if(i==argc)
+			memset(if_->rsp, 0, sizeof(char **));
+		else
+			memcpy(if_->rsp, &arg_address[i], sizeof(char **));
+	}
 
-    // return address push
-    (*rsp) -= 8;
-    **(void ***)rsp = 0;
+	// part D: rdi, rsi 세팅
+
+	if_->R.rdi = argc;
+	if_->R.rsi = if_->rsp; // 굳이 -8 하고나서 +8 안하고, 그냥 여기서 세팅하기
+
+	// part E: 마지막줄 (fake address)
+	if_->rsp = if_->rsp - 8;
+	memset(if_->rsp, 0, sizeof(void *));
 }
 /* Waits for thread TID to die and returns its exit status.  If
  * it was terminated by the kernel (i.e. killed due to an

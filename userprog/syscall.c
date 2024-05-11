@@ -82,7 +82,8 @@ void halt(void) {
 void exit(int status) {
     struct thread *curr = thread_current();
     curr->status = status;
-    printf("%s(프로세스 이름): exit(%d)\n", curr->name, status);  // process termination message
+	printf("테슽\n");
+    printf("%s: exit(%d)\n", curr->name, status);  // process termination message
     ASSERT(curr->status == 0);
     thread_exit();
 }
