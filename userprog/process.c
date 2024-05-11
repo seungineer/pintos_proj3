@@ -307,7 +307,7 @@ void process_exit(void) {
      * TODO: project2/process_termination.html).
      * TODO: We recommend you to implement process resource cleanup here. */
     // FDT의 모든 파일을 닫고 메모리를 반환한다.
-    for (int i = 2; i < FDT_COUNT_LIMIT; i++) {
+    for (int i = 3; i < FDT_COUNT_LIMIT; i++) { // !!! close 문제로 인해 -> open-twice 실행 시 close()가 먹혀서 에러가 발생함 !!!
         if (curr->fdt[i] != NULL)
             close(i);
     }
@@ -750,5 +750,8 @@ void process_close_file(int fd)
 	struct file **fdt = curr->fdt;
 	if (fd < 2 || fd >= FDT_COUNT_LIMIT)
 		return NULL;
-	fdt[fd] = NULL;
+	fdt[fd] = NULL;   
+//     if (fd < 0 || fd > FDT_COUNT_LIMIT)
+// 		return NULL;
+// 	thread_current()->fd_table[fd] = NULL;
 }

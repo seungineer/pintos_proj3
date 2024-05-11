@@ -473,6 +473,7 @@ static void init_thread(struct thread *t, const char *name, int priority)
     t->init_priority = priority; // save orginal priority
     t->wait_on_lock = NULL;
     list_init(&t->donations);
+    t->next_fd = 3;
 
     sema_init(&t->wait_sema,0);
 	sema_init(&t->fork_sema,0);

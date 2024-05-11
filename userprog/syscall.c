@@ -71,19 +71,26 @@ void syscall_init(void) {
 }
 
 void check_address(void *addr) {
-    if (addr != NULL && is_user_vaddr(addr)) {
-        return;  // 유효한 주소
-    }
-    exit(-1);  // 유효하지 않은 주소 처리(state = -1)
+    // if (addr != NULL && is_user_vaddr(addr)) {
+    //     return;  // 유효한 주소
+    // }
+    // exit(-1);  // 유효하지 않은 주소 처리(state = -1)
+	struct thread *t = thread_current(); // 변경사항
+	/* 포인터가 가리키는 주소가 유저영역의 주소인지 확인 */
+	/* what if the user provides an invalid pointer, a pointer to kernel memory, 
+	 * or a block partially in one of those regions */
+	/* 잘못된 접근인 경우, 프로세스 종료 */
+	if (!is_user_vaddr(addr) || addr == NULL || pml4_get_page(t->pml4, addr) == NULL)
+		exit(-1);
 }
 void halt(void) {
     power_off();  // pintos 완전히 종료
 }
 void exit(int status) {
     struct thread *curr = thread_current();
-    curr->status = status;
+    curr->exit_status = status;
     printf("%s: exit(%d)\n", curr->name, status);  // process termination message
-    ASSERT(curr->status == 0);
+    // ASSERT(curr->status == 0);
     thread_exit();
 }
 bool create(const char *file, unsigned initial_size) {  // 파일 시스템 생성 시스템 콜
@@ -98,14 +105,14 @@ bool remove(const char *file) {
 
 int open(const char *file) {
     check_address(file);
-    lock_acquire(&filesys_lock);
+    // lock_acquire(&filesys_lock);
     struct file *f = filesys_open(file);  // 파일을 오픈
     if (f == NULL)
         return -1;
     int fd = process_add_file(f);
     if (fd == -1)
         file_close(f);
-    lock_release(&filesys_lock);
+    // lock_release(&filesys_lock);
     return fd;
 }
 struct file *process_get_file (int fd){
