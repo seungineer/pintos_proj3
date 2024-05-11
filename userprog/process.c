@@ -112,7 +112,7 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 
 	/* 1. TODO: If the parent_page is kernel page, then return immediately. */
 	if is_kernel_vaddr(va) {
-		return false;
+		return true;
 	}
 	/* 2. Resolve VA from the parent's page map level 4. */
 	parent_page = pml4_get_page (parent->pml4, va);
@@ -155,7 +155,8 @@ static void __do_fork(void *aux) {
 
     /* 1. Read the cpu context to local stack. */
     memcpy(&if_, parent_if, sizeof(struct intr_frame));
-    printf("1\n");
+    if_.R.rax = 0;
+ 
     /* 2. Duplicate PT */
     current->pml4 = pml4_create();
     if (current->pml4 == NULL)
@@ -294,17 +295,14 @@ void argument_stack(char **argv, int argc, struct intr_frame *if_){
  * does nothing. */
 int process_wait(tid_t child_tid UNUSED) {
     struct thread *cur = thread_current();
-	struct thread *child = get_child_process(child_tid);
-
-	if (child == NULL)
-		return -1;
-	
-	sema_down(&child->wait_sema); 
-	int exit_status = child->exit_status;
-	list_remove(&child->child_elem);
-	sema_up(&child->free_sema);
-
-	return exit_status;// 자식의 exit_status를 반환한다.
+    struct thread *child = get_child_process(child_tid);
+    if (child == NULL)
+        return -1;
+    sema_down(&child->wait_sema);
+    int exit_status = child->exit_status;
+    list_remove(&child->child_elem);
+    sema_up(&child->free_sema);
+    return exit_status;// 자식의 exit_status를 반환한다.
 }
 
 /* Exit the process. This function is called by thread_exit (). */

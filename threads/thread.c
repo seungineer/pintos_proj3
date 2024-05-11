@@ -17,8 +17,6 @@
 #include "userprog/process.h"
 #endif
 
-struct lock filesys_lock;
-
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
@@ -69,7 +67,7 @@ static void do_schedule(int status);
 static void schedule(void);
 static tid_t allocate_tid(void);
 bool cmp_thread_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
-
+struct lock filesys_lock;
 /* Returns true if T appears to point to a valid thread. */
 #define is_thread(t) ((t) != NULL && (t)->magic == THREAD_MAGIC)
 
@@ -110,10 +108,10 @@ void thread_init(void)
 
     /* Init the globla thread context */
     lock_init(&tid_lock);
-    lock_init(&filesys_lock);
     list_init(&ready_list);
     list_init(&sleep_list);
     list_init(&destruction_req);
+    list_init(&filesys_lock);
 
     /* Set up a thread structure for the running thread. */
     initial_thread = running_thread();
@@ -475,11 +473,10 @@ static void init_thread(struct thread *t, const char *name, int priority)
     /* for the donation test */
     t->init_priority = priority; // save orginal priority
     t->wait_on_lock = NULL;
-    list_init(&(t->donations));
-    t->exit_status = 0;
+    list_init(&t->donations);
     t->next_fd = 3;
 
-    sema_init(&t->wait_sema,0);
+    sema_init(&t->wait_sema, 0);
 	sema_init(&t->fork_sema,0);
 	sema_init(&t->free_sema,0);
     list_init(&t->child_list);

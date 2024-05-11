@@ -299,6 +299,7 @@ void syscall_handler(struct intr_frame *f UNUSED) {
 		exit(f->R.rdi);
 		break;
 	case SYS_FORK:
+		memcpy(&thread_current()->parent_if, f, sizeof(struct intr_frame));
 		f->R.rax = fork(f->R.rdi);
 		break;
 	case SYS_EXEC:
