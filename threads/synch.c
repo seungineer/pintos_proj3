@@ -60,15 +60,21 @@ void sema_init(struct semaphore *sema, unsigned value) {
    sema_down function. */
 void sema_down(struct semaphore *sema) {
   enum intr_level old_level;
+  struct thread *child = get_child(4);
+    // printf("차일드 포크세마의 밸류 : %d\n",sema->value);
 
   ASSERT (sema != NULL);
   ASSERT (!intr_context ());
   old_level = intr_disable ();
+  // printf("dfdfudufdufu\n");
+  // printf("sema_>value : %d\n", sema->value);
   while (sema->value == 0) 
     {
+      // printf("in\n");
       list_insert_ordered (&sema->waiters, &thread_current ()->elem, cmp_thread_priority, 0);
       thread_block ();
     }
+    // printf("out\n");
   sema->value--;
   intr_set_level (old_level);
 }

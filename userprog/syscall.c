@@ -282,6 +282,7 @@ void close(int fd)
 tid_t fork (const char *thread_name){
 	/* create new process, which is the clone of current process with the name THREAD_NAME*/
 	struct thread *curr = thread_current();
+	
 	return process_fork(thread_name, &curr->parent_if);
 	/* must return pid of the child process */
 }
