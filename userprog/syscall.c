@@ -110,7 +110,8 @@ int open(const char *file) {
         return -1;
     int fd = process_add_file(f);
     if (fd == -1)
-        file_close(f);
+        // file_close(f);
+		free(f);
     // lock_release(&filesys_lock);
     return fd;
 }
@@ -273,10 +274,10 @@ void close(int fd)
 	// process_close_file(fd); // 프로세스에서 파일 디스크립터에 등록된 fd를 삭제해주는 함수
 
 	struct thread *current = thread_current();
-	if((fd <= 1) || (current->fd_idx <= fd))
+	if((fd <= 1) || (current->next_fd <= fd))
 		return;
 	file_close(process_get_file(fd));
-	current->fd_table[fd] = NULL;
+	current->fdt[fd] = NULL;
 }
 
 tid_t fork (const char *thread_name){

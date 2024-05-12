@@ -135,6 +135,7 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 	 *    permission. */
 	if (!pml4_set_page (current->pml4, va, newpage, writable)) {
 		/* 6. TODO: if fail to insert page, do error handling. */
+        palloc_free_page(newpage);
 		return false;
 	}
 	return true;
@@ -313,10 +314,20 @@ void process_exit(void) {
      * TODO: project2/process_termination.html).
      * TODO: We recommend you to implement process resource cleanup here. */
     // FDT의 모든 파일을 닫고 메모리를 반환한다.
-    for (int i = 3; i < FDT_COUNT_LIMIT; i++) { // !!! close 문제로 인해 -> open-twice 실행 시 close()가 먹혀서 에러가 발생함 !!!
+    for (int i = 0; i < FDT_COUNT_LIMIT; i++) { // !!! close 문제로 인해 -> open-twice 실행 시 close()가 먹혀서 에러가 발생함 !!!
         if (curr->fdt[i] != NULL)
             close(i);
+
     }
+
+    struct list_elem *child;
+    for (child = list_begin(&thread_current()->child_list); // childs 순회
+         child != list_end(&thread_current()->child_list); child = list_next(child))
+    {
+        struct thread *t = list_entry(child, struct thread, child_elem);
+        sema_up(&t->free_sema);
+    }
+
     palloc_free_multiple(curr->fdt, FDT_PAGES);
     file_close(curr->running);  // 현재 실행 중인 파일도 닫는다.
 
@@ -327,6 +338,7 @@ void process_exit(void) {
     sema_up(&curr->wait_sema);
     // 부모의 signal을 기다린다. 대기가 풀리고 나서 do_schedule(THREAD_DYING)이 이어져 다른 스레드가 실행된다.
     sema_down(&curr->free_sema);
+    
 }
 
 /* Free the current process's resources. */
@@ -746,11 +758,22 @@ int process_add_file(struct file *f)
 	// limit을 넘지 않는 범위 안에서 빈 자리 탐색
 	while (curr->next_fd < FDT_COUNT_LIMIT && fdt[curr->next_fd])
 		curr->next_fd++;
-	if (curr->next_fd >= FDT_COUNT_LIMIT)
+	if (curr->next_fd >= FDT_COUNT_LIMIT){
+        curr->next_fd = FDT_COUNT_LIMIT;
 		return -1;
+    }
 	fdt[curr->next_fd] = f;
 
 	return curr->next_fd;
+    // for (int idx = curr->fd_idx; idx<FDT_COUNT_LIMIT; idx++){
+    //     if(fdt[idx] == NULL){
+    //         fdt[idx] = f;
+    //         curr->fd_idx = idx;
+    //         return curr->fd_idx;
+    //     }
+    // }
+    // curr->fd_idx = FDT_COUNT_LIMIT;
+    // return -1;
 }
 // 파일 디스크립터 테이블에서 파일 객체를 제거하는 함수
 void process_close_file(int fd)

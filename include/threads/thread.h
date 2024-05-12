@@ -131,9 +131,6 @@ struct thread {
 	struct intr_frame parent_if;         /* 유저 스택의 정보를 인터럽트 프레임 안에 넣어서, 커널 스택으로 넘겨주기 위함 */ //변경사항 - 자식에게 넘겨줄 intr_frame
 
 	/* file descriptor 관련 추가 */
-	struct file **fd_table;             /* File Descriptor Table (FD Table) */
-	int fd_idx;                          /* File Descriptor Index (FD Idx) */
-
 };
 
 /* If false (default), use round-robin scheduler.
