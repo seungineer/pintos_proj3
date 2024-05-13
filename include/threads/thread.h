@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/interrupt.h"
+#include "threads/synch.h" 
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -27,6 +28,9 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+
+#define FDT_COUNT_LIMIT 128    			/* FD 값 한계 */
+#define FDT_PAGES 2
 
 /* A kernel thread or user process.
  *
@@ -101,6 +105,16 @@ struct thread {
 	struct lock *wait_on_lock;  	// 요청한 lock
 	struct list donations;			// 기부 받은 우선순위 리스트
 	struct list_elem donation_elem; // donations 식별자
+	struct list child_list;             /* 자식 프로세스를 담아줄 리스트*/
+	struct list_elem child_elem;		/* child_list에 담아줄 elem */ 
+	struct semaphore fork_sema;          /* 자식 프로세스를 정상적으로 로드하기 위해, 부모 프로세스가 sema_down/up하게 되는 세마포어 */ //fork가 완료될때 까지 부모가 기다리게 하는 forksema
+	struct semaphore free_sema;			 /*자식 프로세스 종료상태를 부모가 받을때까지 종료를 대기하게 하는 free_sema */
+	struct semaphore wait_sema;			/* wait_sema 를 이용하여 자식 프로세스가 종료할때까지 대기함. 종료 상태를 저장 */
+	int exit_status;                    /* system call : exit , wait */
+	struct file **fdt;
+	int next_fd;
+	struct file *running; // 현재 실행중인 파일
+	
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
@@ -114,6 +128,9 @@ struct thread {
 	/* Owned by thread.c. */
 	struct intr_frame tf;               /* Information for switching */
 	unsigned magic;                     /* Detects stack overflow. */
+	struct intr_frame parent_if;         /* 유저 스택의 정보를 인터럽트 프레임 안에 넣어서, 커널 스택으로 넘겨주기 위함 */ //변경사항 - 자식에게 넘겨줄 intr_frame
+
+	/* file descriptor 관련 추가 */
 };
 
 /* If false (default), use round-robin scheduler.

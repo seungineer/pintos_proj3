@@ -116,10 +116,10 @@ main (void) {
 #endif
 
 	printf ("Boot complete.\n");
-
+	// printf("===========Boot complete==========\n");
 	/* Run actions specified on kernel command line. */
 	run_actions (argv);
-
+	// printf("========== run_actions 아래===========\n");
 	/* Finish up. */
 	if (power_off_when_done)
 		power_off ();
@@ -243,9 +243,10 @@ run_task (char **argv) {
 	if (thread_tests){
 		run_test (task);
 	} else {
-		
+		// printf("argv: %s\n", *(argv));
+		// printf("argv1: %c\n", *(argv+1));
+		// printf("argv2: %c\n", *(argv+2));
 		process_wait (process_create_initd (task));
-		
 	}
 #else
 	// printf("after userprog, process_created\n");

@@ -60,16 +60,20 @@ void sema_init(struct semaphore *sema, unsigned value) {
    sema_down function. */
 void sema_down(struct semaphore *sema) {
   enum intr_level old_level;
+  // printf("차일드 포크세마의 밸류 : %d\n",sema->value);
 
   ASSERT (sema != NULL);
   ASSERT (!intr_context ());
-
-  old_level = intr_disable ();
+       old_level = intr_disable ();
+  // printf("dfdfudufdufu\n");
+  // printf("sema_>value : %d\n", sema->value);
   while (sema->value == 0) 
     {
-      list_insert_ordered (&sema->waiters, &thread_current ()->elem, cmp_thread_priority, 0);
-      thread_block ();
+      // printf("in\n");
+      list_insert_ordered (&sema->waiters, &thread_current()->elem, cmp_thread_priority, 0);
+      thread_block();
     }
+    // printf("out\n");
   sema->value--;
   intr_set_level (old_level);
 }
@@ -183,7 +187,6 @@ void lock_acquire(struct lock *lock) {
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
-
   struct thread *cur = thread_current ();
   if (lock->holder) {
     cur->wait_on_lock = lock;
@@ -191,9 +194,7 @@ void lock_acquire(struct lock *lock) {
     			cmp_donation_priority, 0);
     donate_priority ();
   }
-
   sema_down (&lock->semaphore); 
-  
   cur->wait_on_lock = NULL;
   lock->holder = cur;
 }
@@ -279,7 +280,6 @@ void refresh_priority(void) {
    a lock would be racy.) */
 bool lock_held_by_current_thread(const struct lock *lock) {
     ASSERT(lock != NULL);
-
     return lock->holder == thread_current();
 }
 

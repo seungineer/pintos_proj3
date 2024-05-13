@@ -67,7 +67,7 @@ static void do_schedule(int status);
 static void schedule(void);
 static tid_t allocate_tid(void);
 bool cmp_thread_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
-
+struct lock filesys_lock;
 /* Returns true if T appears to point to a valid thread. */
 #define is_thread(t) ((t) != NULL && (t)->magic == THREAD_MAGIC)
 
@@ -111,6 +111,7 @@ void thread_init(void)
     list_init(&ready_list);
     list_init(&sleep_list);
     list_init(&destruction_req);
+    lock_init(&filesys_lock);
 
     /* Set up a thread structure for the running thread. */
     initial_thread = running_thread();
@@ -203,6 +204,12 @@ tid_t thread_create(const char *name, int priority, thread_func *function, void 
     t->tf.ss = SEL_KDSEG;
     t->tf.cs = SEL_KCSEG;
     t->tf.eflags = FLAG_IF;
+    // 현재 스레드의 자식으로 추가
+	list_push_back(&thread_current()->child_list, &t->child_elem);
+
+	t->fdt = palloc_get_multiple(PAL_ZERO, FDT_PAGES);
+	if (t->fdt == NULL)
+		return TID_ERROR;
 
     /* Add to run queue. */
     thread_unblock(t);
@@ -265,7 +272,7 @@ const char *thread_name(void)
 struct thread *thread_current(void)
 {
     struct thread *t = running_thread();
-
+    // printf("%s\n", t->status);
     /* Make sure T is really a thread.
        If either of these assertions fire, then your thread may
        have overflowed its stack.  Each thread has less than 4 kB
@@ -467,6 +474,12 @@ static void init_thread(struct thread *t, const char *name, int priority)
     t->init_priority = priority; // save orginal priority
     t->wait_on_lock = NULL;
     list_init(&t->donations);
+    t->next_fd = 3;
+
+    sema_init(&t->wait_sema, 0);
+	sema_init(&t->fork_sema,0);
+	sema_init(&t->free_sema,0);
+    list_init(&t->child_list);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
