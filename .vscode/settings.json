@@ -17,6 +17,10 @@
         "ratio": "c",
         "tuple": "c",
         "type_traits": "c",
-        "utility": "c"
+        "utility": "c",
+        "uninit.h": "c",
+        "unordered_map": "c",
+        "numeric": "c",
+        "ostream": "c"
     }
 }
