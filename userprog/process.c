@@ -546,10 +546,8 @@ static bool validate_segment(const struct Phdr *phdr, struct file *file) {
     /* p_offset and p_vaddr must have the same page offset. */
     if ((phdr->p_offset & PGMASK) != (phdr->p_vaddr & PGMASK))
         return false;
-
     /* p_offset must point within FILE. */
-    if (phdr->p_offset > (uint64_t)file_length(file))
-        return false;
+    if (phdr->p_offset > (uint64_t)file_length(file)) return false;
 
     /* p_memsz must be at least as big as p_filesz. */
     if (phdr->p_memsz < phdr->p_filesz)
@@ -693,19 +691,13 @@ static bool lazy_load_segment(struct page *page, void *aux) {
     uint32_t read_bytes = lazy_aux_container->read_bytes;
     uint32_t zero_bytes = lazy_aux_container->zero_bytes;
     void *kpage = page->frame->kva;
-    return false;
+
+    if (file_read_at(file, kpage, read_bytes, offset) != read_bytes) {
+        return false;
+    }
+    memset(kpage + read_bytes, 0, zero_bytes);
+    return true;
 }
-
-//     // 파일에서 데이터를 읽어 페이지에 적재합니다.
-//     if (file_read_at(file, kpage, read_bytes, offset) != (int)read_bytes) {
-//         return false;
-//     }
-
-//     // 남은 공간을 0으로 초기화합니다.
-//     memset(kpage + read_bytes, 0, zero_bytes);
-
-//     return true;
-// }
 
 /* 파일에서 OFS 오프셋 위치부터 시작하는 세그먼트를 UPAGE 주소에 로드합니다.
  * 총 READ_BYTES + ZERO_BYTES 바이트의 가상 메모리가 다음과 같이 초기화됩니다:
@@ -731,35 +723,40 @@ static bool load_segment(struct file *file, off_t ofs, uint8_t *upage, uint32_t 
         size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
         /* TODO: Set up aux to pass information to the lazy_load_segment. */
-        struct aux_container *aux_container = malloc(sizeof(struct aux_container));
+        struct aux_container *aux_container = (struct aux_container *)malloc(sizeof(struct aux_container));
         aux_container->file = file;
         aux_container->offset = ofs;
         aux_container->read_bytes = read_bytes;
         aux_container->zero_bytes = zero_bytes;
         if (!vm_alloc_page_with_initializer(VM_ANON, upage, writable, lazy_load_segment, aux_container))
             return false;
-
+        // printf("\nLOAD SEGMENT 안 \n");
         /* Advance. */
         read_bytes -= page_read_bytes;
         zero_bytes -= page_zero_bytes;
         upage += PGSIZE;
+        ofs += page_read_bytes;
     }
     return true;
 }
 
 /* Create a PAGE of stack at the USER_STACK. Return true on success. */
+// NOTE - 강의 필요
 static bool setup_stack(struct intr_frame *if_) {
-    uint8_t *kpage;
     bool success = false;
     void *stack_bottom = (void *)(((uint8_t *)USER_STACK) - PGSIZE);
-    // FIXME 유저 페이지 어디
-    vm_alloc_page(VM_UNINIT, kpage, 1);
-
+    if (vm_alloc_page(VM_ANON | VM_MARKER_0, stack_bottom, 1)) {
+        success = vm_claim_page(stack_bottom);
+        // printf("유저스택 : %p", )
+    }
+    if (success) {
+        if_->rsp = USER_STACK;
+    }
+    return success;
     /* TODO: stack_bottom에 스택을 매핑하고 즉시 해당 페이지를 확보합니다.
      * TODO: 성공했다면 rsp를 적절히 설정합니다.
      * TODO: 해당 페이지를 스택 페이지로 표시해야 합니다.
      */
-    return success;
 }
 #endif /* VM */
 
@@ -789,15 +786,6 @@ int process_add_file(struct file *f) {
     fdt[curr->next_fd] = f;
 
     return curr->next_fd;
-    // for (int idx = curr->fd_idx; idx<FDT_COUNT_LIMIT; idx++){
-    //     if(fdt[idx] == NULL){
-    //         fdt[idx] = f;
-    //         curr->fd_idx = idx;
-    //         return curr->fd_idx;
-    //     }
-    // }
-    // curr->fd_idx = FDT_COUNT_LIMIT;
-    // return -1;
 }
 // 파일 디스크립터 테이블에서 파일 객체를 제거하는 함수
 void process_close_file(int fd) {

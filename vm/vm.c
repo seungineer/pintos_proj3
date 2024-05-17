@@ -76,8 +76,8 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 
         uninit_new(p, upage, init, type, aux, initializer);  // UNINIT 페이지 생성
         p->writable = writable;
-        spt_insert_page(spt, p);
-        return true;
+
+        return spt_insert_page(spt, p);
         /*-------------------------[P3]Anonoymous page---------------------------------*/
     }
 err:
@@ -98,13 +98,14 @@ err:
 
 /* Find VA from spt and return page. On error, return NULL. */
 // spt에서 va에 해당하는 page를 찾아서 반환
+static int cnt = 0;
 struct page *
 spt_find_page(struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
     struct page *page = NULL;
     page = malloc(sizeof(struct page));
     struct hash_elem *hash_element;
     page->va = pg_round_down(va);  // 페이지를 찾을때는 rounddown  -> up은 할당크기 맞출때
-    hash_element = hash_find(&spt->hash_page, &page->hash_elem);
+    hash_element = hash_find(spt, &page->hash_elem);
     free(page);
     // 있으면 e에 해당하는 페이지 반환
     if (hash_element) {
@@ -118,10 +119,7 @@ bool spt_insert_page(struct supplemental_page_table *spt UNUSED,
                      struct page *page UNUSED) {
     int succ = false;
     // REVIEW INSERT_PAGE
-    struct hash_elem *tmp;
-    struct page *tmp_page = hash_entry(tmp, struct page, hash_elem);
-    tmp = hash_insert(&spt->hash_page, &tmp_page->hash_elem);
-    if (tmp == NULL) {  // 잘 추가되었으면 NULL반환
+    if (hash_insert(&spt->hash_page, &page->hash_elem) == NULL) {  // 잘 추가되었으면 NULL반환
         succ = true;
     }
     return succ;
@@ -136,7 +134,7 @@ static struct frame *
 vm_get_victim(void) {
     struct frame *victim = NULL;
     /* TODO: The policy for eviction is up to you. */
-    victim = list_pop_front(&frame_table);
+    // victim = list_pop_front(&frame_table);
     // REVIEW list가 비어있다면 ?
     return victim;
 }
@@ -168,7 +166,7 @@ vm_get_frame(void) {
     frame->page = NULL;
     ASSERT(frame != NULL);
     ASSERT(frame->page == NULL);
-    list_push_back(&frame_table, &frame->frame_elem);
+    // list_push_back(&frame_table, &frame->frame_elem);
     return frame;
 }
 /* Growing the stack. */
@@ -180,25 +178,24 @@ vm_stack_growth(void *addr UNUSED) {
 static bool
 vm_handle_wp(struct page *page UNUSED) {
 }
-
 /* Return true on success */
+
 bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
                          bool user UNUSED, bool write UNUSED, bool not_present UNUSED) {
     struct supplemental_page_table *spt UNUSED = &thread_current()->spt;
     struct page *page = NULL;
-    if (addr == NULL)
+    if (addr == NULL) {
         return false;
+    }
+    if (is_kernel_vaddr(addr)) {
+        return false;
+    }
 
-    if (is_kernel_vaddr(addr))
-        return false;
     // REVIEW
-    {
-        page = spt_find_page(spt, addr);
-        if (page == NULL)
-            return false;
-        if (write == 1 && page->writable == 0)  // write 불가능한 페이지에 write 요청한 경우
-            return false;
-        return vm_do_claim_page(page);
+
+    page = spt_find_page(spt, addr);
+    if (page == NULL) {
+        return false;
     }
     return vm_do_claim_page(page);
 }
@@ -245,7 +242,9 @@ vm_do_claim_page(struct page *page) {  // va 페이지를만들고 프레임에 
 
     struct thread *current = thread_current();
     bool writable = is_writable(current->pml4);
-    pml4_set_page(current->pml4, page->va, frame->kva, writable);
+    // printf("첫 번째 라이타블 :%d", writable);
+    // printf(" 두 번째 라이타블 :%d\n", page->writable);
+    pml4_set_page(current->pml4, page->va, frame->kva, page->writable);
 
     return swap_in(page, frame->kva);
 }
