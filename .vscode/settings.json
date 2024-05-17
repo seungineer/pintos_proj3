@@ -1,0 +1,22 @@
+{
+    "files.associations": {
+        "*.inc": "c",
+        "iosfwd": "c",
+        "limits": "c",
+        "stop_token": "c",
+        "streambuf": "c",
+        "syscall.h": "c",
+        "lib.h": "c",
+        "atomic": "c",
+        "*.tcc": "c",
+        "chrono": "c",
+        "string_view": "c",
+        "array": "c",
+        "compare": "c",
+        "functional": "c",
+        "ratio": "c",
+        "tuple": "c",
+        "type_traits": "c",
+        "utility": "c"
+    }
+}
