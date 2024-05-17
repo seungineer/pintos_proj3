@@ -688,10 +688,24 @@ static bool lazy_load_segment(struct page *page, void *aux) {
     /* TODO: 이 함수를 호출할 때 VA가 사용 가능합니다. */
     struct aux_container *lazy_aux_container = (struct aux_container *)aux;
     // REVIEW palloc size 점검
-    struct frame *k_frame = palloc_get_page(PAL_USER);
-
+    struct file *file = lazy_aux_container->file;
+    off_t offset = lazy_aux_container->offset;
+    uint32_t read_bytes = lazy_aux_container->read_bytes;
+    uint32_t zero_bytes = lazy_aux_container->zero_bytes;
+    void *kpage = page->frame->kva;
     return false;
 }
+
+//     // 파일에서 데이터를 읽어 페이지에 적재합니다.
+//     if (file_read_at(file, kpage, read_bytes, offset) != (int)read_bytes) {
+//         return false;
+//     }
+
+//     // 남은 공간을 0으로 초기화합니다.
+//     memset(kpage + read_bytes, 0, zero_bytes);
+
+//     return true;
+// }
 
 /* 파일에서 OFS 오프셋 위치부터 시작하는 세그먼트를 UPAGE 주소에 로드합니다.
  * 총 READ_BYTES + ZERO_BYTES 바이트의 가상 메모리가 다음과 같이 초기화됩니다:
@@ -709,7 +723,6 @@ static bool load_segment(struct file *file, off_t ofs, uint8_t *upage, uint32_t 
     ASSERT((read_bytes + zero_bytes) % PGSIZE == 0);
     ASSERT(pg_ofs(upage) == 0);
     ASSERT(ofs % PGSIZE == 0);
-
     while (read_bytes > 0 || zero_bytes > 0) {
         /* Do calculate how to fill this page.
          * We will read PAGE_READ_BYTES bytes from FILE
@@ -718,7 +731,7 @@ static bool load_segment(struct file *file, off_t ofs, uint8_t *upage, uint32_t 
         size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
         /* TODO: Set up aux to pass information to the lazy_load_segment. */
-        struct aux_container *aux_container;
+        struct aux_container *aux_container = malloc(sizeof(struct aux_container));
         aux_container->file = file;
         aux_container->offset = ofs;
         aux_container->read_bytes = read_bytes;
