@@ -273,8 +273,8 @@ tid_t fork(const char *thread_name) {
 }
 /* The main system call interface */
 void syscall_handler(struct intr_frame *f UNUSED) {
-    // TODO: Your implementation goes here.
     int syscall_number = f->R.rax;  // system call number 가져오기
+    thread_current()->rsp_addr = f->rsp;
     switch (syscall_number) {
         case SYS_HALT:
             halt();
