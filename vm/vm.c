@@ -141,7 +141,8 @@ vm_get_frame(void) {
     frame = malloc(sizeof(struct frame));
     void *kva = palloc_get_page(PAL_USER);
     if (kva == NULL) {
-        PANIC("TODO: swap out");
+        // PANIC("TODO: swap out");
+        return;
     }
     frame->kva = kva;
     frame->page = NULL;

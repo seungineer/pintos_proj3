@@ -179,7 +179,6 @@ static void __do_fork(void *aux) {
     if (!pml4_for_each(parent->pml4, duplicate_pte, parent))
         goto error;
 #endif
-
     /* TODO: Your code goes here.
      * TODO: Hint) To duplicate the file object, use `file_duplicate`
      * TODO:       in include/filesys/file.h. Note that parent should not return
@@ -197,7 +196,10 @@ static void __do_fork(void *aux) {
     current->next_fd = parent->next_fd;
 
     // 로드가 완료될 때까지 기다리고 있던 부모 대기 해제
+    lock_acquire(&filesys_lock);
     sema_up(&current->fork_sema);
+    lock_release(&filesys_lock);
+
     process_init();
 
     /* Finally, switch to the newly created process. */
@@ -456,7 +458,10 @@ static bool load(const char *file_name, struct intr_frame *if_) {
     process_activate(thread_current());
 
     /* Open executable file. */
+    lock_acquire(&filesys_lock);
     file = filesys_open(file_name);
+    lock_release(&filesys_lock);
+
     if (file == NULL) {
         printf("load: %s: open failed\n", file_name);
         goto done;

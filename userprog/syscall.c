@@ -206,8 +206,13 @@ int read(int fd, void *buffer, unsigned size)  // read 함수는 fd, size로 얼
             return -1;
         }
         // printf("리드2\n");
+        struct page *page = spt_find_page(&thread_current()->spt, buffer);
+        if (page && !page->writable) {
+            lock_release(&filesys_lock);
+            exit(-1);
+        }
+
         bytes_read = file_read(file, buffer, size);
-        // printf("바이또 %d\n", bytes_read);
         lock_release(&filesys_lock);
     }
     // printf("=========안들어갔음=============\n");
