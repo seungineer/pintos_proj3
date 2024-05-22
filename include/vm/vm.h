@@ -52,6 +52,7 @@ struct page {
     // REVIEW hash_elem 선언
     struct hash_elem hash_elem;
     bool writable;
+    int map_page_count;
     /* Per-type data are binded into the union.
      * Each function automatically detects the current union */
     union {

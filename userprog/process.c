@@ -37,12 +37,7 @@ void argument_stack(char **argv, int argc, struct intr_frame *if_);
 static void process_init(void) {
     struct thread *current = thread_current();
 }
-struct aux_container {
-    struct file *file;
-    off_t offset;
-    uint32_t read_bytes;
-    uint32_t zero_bytes;
-};
+
 struct thread *get_child(int pid);
 int process_add_file(struct file *f);
 void process_close_file(int fd);
@@ -685,7 +680,7 @@ static bool install_page(void *upage, void *kpage, bool writable) {
  * If you want to implement the function for only project 2, implement it on the
  * upper block. */
 
-static bool lazy_load_segment(struct page *page, void *aux) {
+bool lazy_load_segment(struct page *page, void *aux) {
     /* TODO: 파일에서 세그먼트를 로드합니다. */
     /* TODO: VA 주소에 대한 최초의 페이지 폴트가 발생했을 때 이 함수가 호출됩니다. */
     /* TODO: 이 함수를 호출할 때 VA가 사용 가능합니다. */
@@ -696,11 +691,15 @@ static bool lazy_load_segment(struct page *page, void *aux) {
     uint32_t read_bytes = lazy_aux_container->read_bytes;
     uint32_t zero_bytes = lazy_aux_container->zero_bytes;
     void *kpage = page->frame->kva;
+    file_seek(file, offset);
 
     if (file_read_at(file, kpage, read_bytes, offset) != read_bytes) {
+        free(lazy_aux_container);
         return false;
     }
     memset(kpage + read_bytes, 0, zero_bytes);
+    free(lazy_load_segment);
+    file_seek(file, offset);
     return true;
 }
 
