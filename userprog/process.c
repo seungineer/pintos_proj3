@@ -333,7 +333,7 @@ void process_exit(void) {
     file_close(curr->running);  // 현재 실행 중인 파일도 닫는다.
 
     process_cleanup();
-    // hash_destroy(&curr->spt.spt_hash, NULL);  // todo 🚨
+    hash_destroy(&curr->spt.hash_page, NULL);  // todo 🚨
 
     // 자식이 종료될 때까지 대기하고 있는 부모에게 signal을 보낸다.
     sema_up(&curr->wait_sema);
@@ -681,26 +681,25 @@ static bool install_page(void *upage, void *kpage, bool writable) {
  * upper block. */
 
 bool lazy_load_segment(struct page *page, void *aux) {
-    /* TODO: 파일에서 세그먼트를 로드합니다. */
-    /* TODO: VA 주소에 대한 최초의 페이지 폴트가 발생했을 때 이 함수가 호출됩니다. */
-    /* TODO: 이 함수를 호출할 때 VA가 사용 가능합니다. */
-    struct aux_container *lazy_aux_container = (struct aux_container *)aux;
-    // REVIEW palloc size 점검
-    struct file *file = lazy_aux_container->file;
-    off_t offset = lazy_aux_container->offset;
-    uint32_t read_bytes = lazy_aux_container->read_bytes;
-    uint32_t zero_bytes = lazy_aux_container->zero_bytes;
-    void *kpage = page->frame->kva;
-    file_seek(file, offset);
+	/* TODO: Load the segment from the file */
+	/* TODO: This called when the first page fault occurs on address VA. */
+	/* TODO: VA is available when calling this function. */
 
-    if (file_read_at(file, kpage, read_bytes, offset) != read_bytes) {
-        free(lazy_aux_container);
-        return false;
-    }
-    memset(kpage + read_bytes, 0, zero_bytes);
-    free(lazy_load_segment);
-    file_seek(file, offset);
-    return true;
+	struct aux_container *lazy_load_arg = (struct aux_container *)aux;
+
+	// 1) 파일의 position을 ofs으로 지정한다.
+	file_seek(lazy_load_arg->file, lazy_load_arg->offset);
+	// 2) 파일을 read_bytes만큼 물리 프레임에 읽어 들인다.
+	if (file_read(lazy_load_arg->file, page->frame->kva, lazy_load_arg->read_bytes) != (int)(lazy_load_arg->read_bytes))
+	{
+		palloc_free_page(page->frame->kva);
+		return false;
+	}
+	// 3) 다 읽은 지점부터 zero_bytes만큼 0으로 채운다.
+	memset(page->frame->kva + lazy_load_arg->read_bytes, 0, lazy_load_arg->zero_bytes);
+	// free(lazy_load_arg); // 🚨 Todo : 어디서 반환하지?
+
+	return true;
 }
 
 /* 파일에서 OFS 오프셋 위치부터 시작하는 세그먼트를 UPAGE 주소에 로드합니다.

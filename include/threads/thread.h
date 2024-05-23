@@ -114,6 +114,7 @@ struct thread {
     struct file **fdt;
     int next_fd;
     struct file *running;  // 현재 실행중인 파일
+    void *rsp_addr;
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -122,7 +123,6 @@ struct thread {
 #ifdef VM
     /* Table for whole virtual memory owned by thread. */
     struct supplemental_page_table spt;
-    uint64_t rsp_addr;
 #endif
 
     /* Owned by thread.c. */
